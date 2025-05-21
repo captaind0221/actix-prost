@@ -1,9 +1,11 @@
+use proc_macro2::TokenStream;
+
 enum Kind {
     Enum,
     OneOf,
 }
 
-pub fn process_enum(item: &mut syn::ItemEnum, maybe_rename: Option<String>) {
+pub fn process_enum(item: &mut syn::ItemEnum, maybe_rename: Option<String>) -> Option<TokenStream> {
     let derive = item
         .attrs
         .iter()
@@ -17,7 +19,7 @@ pub fn process_enum(item: &mut syn::ItemEnum, maybe_rename: Option<String>) {
         });
     let derive = match derive {
         Some(syn::Meta::List(derive)) => derive,
-        _ => return,
+        _ => return None,
     };
     let kind = derive
         .nested
@@ -37,7 +39,7 @@ pub fn process_enum(item: &mut syn::ItemEnum, maybe_rename: Option<String>) {
         .next();
     let kind = match kind {
         Some(kind) => kind,
-        None => return,
+        None => return None,
     };
     match kind {
         Kind::OneOf => {
@@ -45,10 +47,21 @@ pub fn process_enum(item: &mut syn::ItemEnum, maybe_rename: Option<String>) {
                 item.attrs
                     .push(syn::parse_quote!(#[serde(rename_all=#rename)]));
             }
+            None
         }
         Kind::Enum => {
             item.attrs
                 .push(syn::parse_quote!(#[serde(rename_all="SCREAMING_SNAKE_CASE")]));
+
+            let name = &item.ident;
+            Some(quote::quote!(
+                impl TryFrom<i32> for #name {
+                    type Error = String;
+                    fn try_from(value: i32) -> Result<Self, Self::Error> {
+                        Self::from_i32(value).ok_or("enum value out of range".into())
+                    }
+                }
+            ))
         }
     }
 }

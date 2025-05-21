@@ -2,6 +2,7 @@ use crate::config::HttpRule;
 use proc_macro2::{Ident, TokenStream};
 use std::{collections::HashSet, iter::FromIterator};
 use syn::PathArguments;
+use quote::ToTokens;
 
 pub struct RequestFields {
     name: String,
@@ -192,7 +193,7 @@ impl Request {
             if let Some(attrs) = attrs {
                 generated.attrs.retain(|attr| {
                     let serde: syn::Path = syn::parse_quote!(actix_prost_macros::serde);
-                    attr.path() != &serde
+                    attr.path().to_token_stream().to_string() != serde.to_token_stream().to_string()
                 });
                 generated
                     .attrs

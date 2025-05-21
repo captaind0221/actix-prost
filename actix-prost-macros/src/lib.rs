@@ -48,6 +48,7 @@ pub fn serde(attrs: TokenStream, item: TokenStream) -> TokenStream {
         None => Some("camelCase".to_owned()),
     };
 
+    let mut result = quote::quote!();
     // Checking that no other `actix_prost_macros::serde` attributes exist for an item
     // allows us to override 'rename_all' attribute for the type.
     // That allows to specify a default serialization case convention and override it
@@ -69,7 +70,8 @@ pub fn serde(attrs: TokenStream, item: TokenStream) -> TokenStream {
             }
             item.attrs
                 .push(syn::parse_quote!(#[derive(serde::Serialize, serde::Deserialize)]));
-            process_enum(item, maybe_rename.clone());
+            let enums = process_enum(item, maybe_rename.clone());
+            result = quote::quote!(#result #enums);
         }
         syn::Item::Struct(item) if !has_other_actix_prost_serde_attributes(&item.attrs) => {
             let mut need_serde_as = false;
@@ -92,5 +94,5 @@ pub fn serde(attrs: TokenStream, item: TokenStream) -> TokenStream {
         }
         _ => {}
     }
-    quote!(#item).into()
+    quote!(#item #result).into()
 }
